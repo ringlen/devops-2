@@ -41,7 +41,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ github.ringlen }}/library-${{ matrix.service }}
+          images: ${{ env.REGISTRY }}/ringlen/library-${{ matrix.service }}
           tags: |
             type=sha,prefix=
             type=raw,value=latest
