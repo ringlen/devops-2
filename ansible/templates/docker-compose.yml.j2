@@ -1,0 +1,40 @@
+services:
+{% for svc in services if svc.db %}
+  {{ svc.name }}-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: {{ db_user }}
+      POSTGRES_PASSWORD: {{ db_password }}
+      POSTGRES_DB: {{ svc.name }}
+    volumes:
+      - {{ svc.name }}_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{ db_user }}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+{% endfor %}
+{% for svc in services %}
+  {{ svc.name }}:
+    image: {{ image_registry }}/library-{{ svc.name }}:{{ image_tag }}
+    ports:
+      - "{{ svc.port }}:{{ svc.port }}"
+    environment:
+      PORT: {{ svc.port }}
+{% if svc.db %}
+      DB_HOST: {{ svc.name }}-db
+      DB_NAME: {{ svc.name }}
+      DB_USER: {{ db_user }}
+      DB_PASSWORD: {{ db_password }}
+    depends_on:
+      {{ svc.name }}-db:
+        condition: service_healthy
+{% endif %}
+    restart: unless-stopped
+
+{% endfor %}
+volumes:
+{% for svc in services if svc.db %}
+  {{ svc.name }}_data:
+{% endfor %}

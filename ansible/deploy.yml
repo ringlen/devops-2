@@ -1,0 +1,66 @@
+---
+- name: Deploy library application
+  hosts: appservers
+  become: yes
+
+  tasks:
+    - name: Install Docker and Docker Compose
+      apt:
+        name:
+          - docker.io
+          - docker-compose-v2
+        state: present
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+    - name: Start Docker
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add user to docker group
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+
+    - name: Create app directory
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Deploy docker-compose file
+      template:
+        src: templates/docker-compose.yml.j2
+        dest: "{{ app_dir }}/docker-compose.yml"
+        mode: '0644'
+      notify: Restart application
+
+    - name: Start application
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_dir }}"
+        state: present
+
+    - name: Apply pending handlers before health check
+      meta: flush_handlers
+
+    - name: Check service health
+      uri:
+        url: "http://localhost:{{ item.port }}/health"
+        status_code: 200
+      loop: "{{ services }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: health
+      retries: 12
+      delay: 5
+      until: health.status == 200
+
+  handlers:
+    - name: Restart application
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_dir }}"
+        state: restarted

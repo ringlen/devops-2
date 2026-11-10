@@ -1,0 +1,15 @@
+---
+app_dir: /opt/library
+image_registry: ghcr.io/ringlen
+image_tag: latest
+
+db_user: postgres
+db_password: secret
+
+services:
+  - { name: auth, port: 8081, db: true }
+  - { name: catalog, port: 8082, db: true }
+  - { name: ebook, port: 8083, db: false }
+  - { name: audio, port: 8084, db: false }
+  - { name: libraryfav, port: 8085, db: true }
+  - { name: billing, port: 8086, db: true }
