@@ -1,0 +1,52 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: library-alerts
+  namespace: monitoring
+spec:
+  groups:
+    - name: library-alerts
+      rules:
+        - alert: ServiceDown
+          expr: probe_success{job="library-health"} == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Service is unavailable"
+            description: "Health check of {{ $labels.instance }} has been failing for more than 1 minute."
+
+        - alert: HighResponseTime
+          expr: probe_duration_seconds{job="library-health"} > 0.5
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High API response time"
+            description: "Response time of {{ $labels.instance }} is above 0.5 s for 2 minutes."
+
+        - alert: HighCPUUsage
+          expr: sum by (pod) (rate(container_cpu_usage_seconds_total{namespace="library",container!=""}[5m])) > 0.5
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High CPU usage"
+            description: "Pod {{ $labels.pod }} uses more than 0.5 CPU cores for 5 minutes."
+
+        - alert: HighMemoryUsage
+          expr: sum by (pod, container) (container_memory_working_set_bytes{namespace="library",container!=""}) / sum by (pod, container) (kube_pod_container_resource_limits{namespace="library",resource="memory"}) > 0.8
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High memory usage"
+            description: "Container {{ $labels.container }} in pod {{ $labels.pod }} uses more than 80 percent of its memory limit."
+
+        - alert: PodRestartingFrequently
+          expr: increase(kube_pod_container_status_restarts_total{namespace="library"}[15m]) > 2
+          labels:
+            severity: warning
+          annotations:
+            summary: "Container restarts frequently"
+            description: "Pod {{ $labels.pod }} restarted more than 2 times in 15 minutes."
