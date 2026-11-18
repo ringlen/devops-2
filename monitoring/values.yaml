@@ -1,0 +1,116 @@
+# Values for kube-prometheus-stack (lab 7, individual task)
+
+grafana:
+  adminPassword: admin123
+  service:
+    type: ClusterIP
+  # Grafana needs several minutes for the first database migration on a loaded Minikube
+  livenessProbe:
+    httpGet:
+      path: /api/health
+      port: grafana
+    initialDelaySeconds: 360
+    timeoutSeconds: 30
+    failureThreshold: 10
+  readinessProbe:
+    httpGet:
+      path: /api/health
+      port: grafana
+    initialDelaySeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 60
+  resources:
+    requests:
+      cpu: 100m
+      memory: 200Mi
+    # No CPU limit so the first DB migration is not throttled
+    limits:
+      memory: 512Mi
+
+alertmanager:
+  enabled: false
+
+# Minikube does not expose these control plane endpoints, disable to avoid false DOWN targets
+kubeEtcd:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
+
+prometheus:
+  prometheusSpec:
+    retention: 7d
+    # Pick up ServiceMonitor, PodMonitor and PrometheusRule objects without the release label
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+    # Scrape less often to reduce load on the shared Minikube node
+    scrapeInterval: 60s
+    evaluationInterval: 60s
+    resources:
+      requests:
+        cpu: 100m
+        memory: 400Mi
+      # No CPU limit: throttling makes Prometheus miss its fixed 3s probe timeout during startup
+      limits:
+        memory: 900Mi
+
+# Probe timeouts of 1s are too short when the node is busy, so the kubelet kills healthy pods
+prometheusOperator:
+  livenessProbe:
+    initialDelaySeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 10
+  readinessProbe:
+    initialDelaySeconds: 10
+    timeoutSeconds: 10
+    failureThreshold: 10
+  resources:
+    requests:
+      cpu: 50m
+      memory: 100Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+kube-state-metrics:
+  livenessProbe:
+    initialDelaySeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 10
+  readinessProbe:
+    initialDelaySeconds: 15
+    timeoutSeconds: 10
+    failureThreshold: 10
+  resources:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 200Mi
+
+prometheus-node-exporter:
+  livenessProbe:
+    initialDelaySeconds: 15
+    timeoutSeconds: 10
+    failureThreshold: 10
+  readinessProbe:
+    initialDelaySeconds: 10
+    timeoutSeconds: 10
+    failureThreshold: 10
+  resources:
+    requests:
+      cpu: 20m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+
+# Lighten the stack: drop alert rules that nobody uses without Alertmanager
+defaultRules:
+  create: false

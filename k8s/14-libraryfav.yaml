@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: libraryfav
+  namespace: library
+  labels:
+    app: libraryfav
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: libraryfav
+  template:
+    metadata:
+      labels:
+        app: libraryfav
+    spec:
+      containers:
+        - name: libraryfav
+          image: library-libraryfav:1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8085
+          env:
+            - name: PORT
+              value: "8085"
+            - name: DB_HOST
+              value: libraryfav-db
+            - name: DB_NAME
+              value: libraryfav
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: DB_PASSWORD
+          readinessProbe:
+            tcpSocket:
+              port: 8085
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 8085
+            initialDelaySeconds: 15
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: libraryfav
+  namespace: library
+spec:
+  selector:
+    app: libraryfav
+  ports:
+    - port: 8085
+      targetPort: 8085
